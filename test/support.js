@@ -53,9 +53,18 @@ export const PAYLOADS = {
         ],
     },
     show: { path: 'Data/Weapons/WEAPON_PISTOL_P38.txt', format: 'txt', toml: '[[weapon]]\nname = "P38"', warnings: [] },
+    showSubtree: {
+        path: 'Data/Weapons/WEAPON_PISTOL_P38.txt',
+        key: 'weapon/ammo',
+        count: 2,
+        values: [
+            { path: 'weapon/ammo/type/name', line: 23, value: '9x19mm Parabellum' },
+            { path: 'weapon/ammo/type/speed', line: 23, value: '350' },
+        ],
+    },
     get: {
         path: 'Data/Weapons/WEAPON_PISTOL_P38.txt',
-        field: 'weapon/name',
+        field: 'name',
         count: 1,
         values: [{ path: 'weapon/name', line: 4, value: 'P38' }],
     },

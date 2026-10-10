@@ -16,21 +16,38 @@ const ALLOWED_OPTIONS = new Set([
 
 const SCALAR_TYPES = new Set(['string', 'number', 'integer', 'boolean', 'null']);
 const ALLOWED_TYPES = new Set([...SCALAR_TYPES, 'array', 'object', 'json']);
+const ALLOWED_KEYS = new Set([
+    'type', 'description', 'oneOf', 'properties', 'additionalProperties', 'items',
+    'enum', 'const', 'required', 'title', 'examples', 'default', 'deprecated',
+]);
 
-/** Validate one ValueSchemaSpec; returns a list of problems. */
-export function validateSpec(spec, where) {
+/**
+ * Validate one ValueSchemaSpec; returns a list of problems.
+ * @param options.allowRequired - false while checking a `oneOf` branch node, which
+ *   the real spec compiler does not let declare `required`; the properties *inside*
+ *   that branch keep `allowRequired: true`.
+ */
+export function validateSpec(spec, where, options = {}) {
     const problems = [];
     if (spec === null || typeof spec !== 'object' || Array.isArray(spec)) {
         problems.push(`${where}: a value spec must be an object`);
         return problems;
     }
+    for (const key of Object.keys(spec)) {
+        if (!ALLOWED_KEYS.has(key))
+            problems.push(`${where}: unsupported keyword ${key}`);
+    }
     if (typeof spec.description !== 'string' && spec.description !== undefined)
         problems.push(`${where}: description must be a string`);
+    if (spec.required !== undefined && spec.required !== true)
+        problems.push(`${where}: required is only allowed as true`);
+    if (options.allowRequired === false && spec.required !== undefined)
+        problems.push(`${where}: a oneOf branch must not declare required`);
     if (spec.oneOf !== undefined) {
         if (!Array.isArray(spec.oneOf) || spec.oneOf.length < 2)
             problems.push(`${where}: oneOf needs at least two branches`);
         else
-            spec.oneOf.forEach((branch, index) => problems.push(...validateSpec(branch, `${where}.oneOf[${index}]`)));
+            spec.oneOf.forEach((branch, index) => problems.push(...validateSpec(branch, `${where}.oneOf[${index}]`, { allowRequired: false })));
         return problems;
     }
     if (!ALLOWED_TYPES.has(spec.type))
@@ -41,16 +58,26 @@ export function validateSpec(spec, where) {
         problems.push(...validateSpec(spec.items, `${where}.items`));
     if (spec.type === 'object' && spec.properties !== undefined) {
         for (const [key, child] of Object.entries(spec.properties))
-            problems.push(...validateSpec(child, `${where}.properties.${key}`));
+            problems.push(...validateSpec(child, `${where}.properties.${key}`, { allowRequired: true }));
     }
     return problems;
 }
 
-/** Validate a value against a ValueSchemaSpec; returns a list of problems. */
+/**
+ * Validate a value against a ValueSchemaSpec; returns a list of problems.
+ *
+ * Like the real validator, `oneOf` demands exactly one matching branch: a value
+ * that satisfies none *or several* branches fails.
+ */
 export function validateValue(spec, value, where = 'value') {
     if (spec.oneOf !== undefined) {
         const branches = spec.oneOf.map((branch) => validateValue(branch, value, where));
-        return branches.some((problems) => problems.length === 0) ? [] : [`${where}: matches no oneOf branch (${branches.map((problems) => problems[0]).join(' | ')})`];
+        const matched = branches.filter((problems) => problems.length === 0).length;
+        if (matched === 1)
+            return [];
+        if (matched === 0)
+            return [`${where}: matches no oneOf branch (${branches.map((problems) => problems[0]).join(' | ')})`];
+        return [`${where}: must match exactly one oneOf branch (matched ${matched})`];
     }
     if (spec.const !== undefined && value !== spec.const)
         return [`${where}: expected const ${JSON.stringify(spec.const)}`];
