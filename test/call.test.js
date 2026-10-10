@@ -51,6 +51,13 @@ test('a timeout and an abort are their own error values', async () => {
     assert.equal((await withResult({ code: null, stdout: '', stderr: '', aborted: true })).code, 'cancelled');
 });
 
+test('the timeout message reports the timeout the runner really uses', async () => {
+    const payload = await withResult({ code: null, stdout: '', stderr: '', timedOut: true });
+    assert.match(payload.message, /within 60000 ms/);
+    const fallback = await invokeCli(async () => ({ code: null, stdout: '', stderr: '', timedOut: true }), { pythonPath: 'python' }, CALL, undefined);
+    assert.match(fallback.message, /within 60000 ms/);
+});
+
 test('a process that could not start is an infrastructure failure, not an error value', async () => {
     await assert.rejects(
         () => withResult({ code: null, stdout: '', stderr: '', failure: new Error('spawn python ENOENT') }),

@@ -43,6 +43,12 @@ test('renderShow prefers the converted rendering over the raw text', () => {
     assert.match(renderShow({}, { path: 'a', format: 'txt', text: 'RAW' }), /RAW/);
 });
 
+test('renderShow renders a subtree as field values', () => {
+    const text = renderShow({}, PAYLOADS.showSubtree);
+    assert.match(text, /WEAPON_PISTOL_P38\.txt weapon\/ammo · 2 elements · 2 values/);
+    assert.match(text, /weapon\/ammo\/type\/name:23 = 9x19mm Parabellum/);
+});
+
 test('row caps keep a huge payload readable', () => {
     const entities = Array.from({ length: 250 }, (_, index) => ({ path: `Data/Weapons/W${index}.txt`, category: 'weapon', format: 'txt', bytes: 1 }));
     const text = renderList({}, { scope: 'Firefight', root: 'r', count: 250, entities });

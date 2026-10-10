@@ -5,7 +5,7 @@ import { resolveConfig } from '../lib/config.js';
 test('every configuration key has a default', () => {
     const config = resolveConfig(undefined);
     assert.equal(config.pythonPath, 'python');
-    assert.equal(config.scriptPath, '');
+    assert.equal(config.cliModule, 'core.cli');
     assert.equal(config.editorRoot, '');
     assert.equal(config.firefightRoot, '');
     assert.equal(config.workspace, '');

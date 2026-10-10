@@ -4,7 +4,7 @@ import { buildArgs } from '../lib/runner.js';
 import { ALL_SPECS, EXPORT_SPEC, EXPORT_TOOL_NAME, READ_SPECS } from '../lib/specs.js';
 import { PAYLOADS } from './support.js';
 
-const SCRIPT = 'C:/editor/ff.py';
+const MODULE = 'core.cli';
 
 /** Walk a schema spec and collect every object node. */
 function objectNodes(node, found = []) {
@@ -47,15 +47,15 @@ test('every spec is model-facing and builds a complete call', () => {
 });
 
 test('scope defaults to Mod and every optional option is dropped when absent', () => {
-    assert.deepEqual(buildArgs(SCRIPT, READ_SPECS[0].build({})), [SCRIPT, 'Mod', 'list', '--json']);
-    assert.deepEqual(buildArgs(SCRIPT, ALL_SPECS[6].build({ value: 'WEAPON_PISTOL_P38' })), [SCRIPT, 'Mod', 'deps', 'value=WEAPON_PISTOL_P38', '--json']);
+    assert.deepEqual(buildArgs(MODULE, READ_SPECS[0].build({})), ['-m', MODULE, 'Mod', 'list', '--json']);
+    assert.deepEqual(buildArgs(MODULE, ALL_SPECS[6].build({ value: 'WEAPON_PISTOL_P38' })), ['-m', MODULE, 'Mod', 'deps', 'value=WEAPON_PISTOL_P38', '--json']);
 });
 
 test('camelCase parameters become the CLI option names', () => {
     const find = ALL_SPECS.find((spec) => spec.name === 'ff_find');
     assert.deepEqual(
-        buildArgs(SCRIPT, find.build({ scope: 'Firefight', selector: 'Weapons', tag: 'flavour', ignoreCase: true, limit: 5 })),
-        [SCRIPT, 'Firefight', 'find', 'Weapons', 'tag=flavour', 'ignore_case=1', 'limit=5', '--json'],
+        buildArgs(MODULE, find.build({ scope: 'Firefight', selector: 'Weapons', tag: 'flavour', ignoreCase: true, limit: 5 })),
+        ['-m', MODULE, 'Firefight', 'find', 'Weapons', 'tag=flavour', 'ignore_case=1', 'limit=5', '--json'],
     );
 });
 
