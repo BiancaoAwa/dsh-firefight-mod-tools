@@ -1,4 +1,4 @@
-# dsh-firefight-mod-tools
+# dsh-firefight-mod-tools (WIP)
 
 A [DSH](https://github.com/deepseek-ai) plugin that exposes the
 [firefight-mod-editor](https://github.com/BiancaoAwa/firefight-mod-editor-open) CLI
