@@ -36,7 +36,7 @@ Then insert the plugin into `cordis.patch.yml`:
       name: 'dsh-firefight-mod-tools'
       config:
         pythonPath: python
-        editorRoot: 'D:/src/firefight-mod-editor-open/m3-cli'
+        editorRoot: 'D:/src/firefight-mod-editor-open/editor-src'
         firefightRoot: 'D:/Program Files (x86)/Steam/steamapps/common/Firefight'
         workspace: 'D:/mods'
 ```

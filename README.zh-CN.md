@@ -34,7 +34,7 @@ pnpm add /path/to/dsh-firefight-mod-tools
       name: 'dsh-firefight-mod-tools'
       config:
         pythonPath: python
-        editorRoot: 'D:/src/firefight-mod-editor-open/m3-cli'
+        editorRoot: 'D:/src/firefight-mod-editor-open/editor-src'
         firefightRoot: 'D:/Program Files (x86)/Steam/steamapps/common/Firefight'
         workspace: 'D:/mods'
 ```

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { buildArgs } from '../lib/runner.js';
-import { ALL_SPECS, EXPORT_SPEC, EXPORT_TOOL_NAME, READ_SPECS } from '../lib/specs.js';
+import { ALL_SPECS, EXPORT_SPEC, EXPORT_TOOL_NAME, READ_SPECS, WRITE_SPECS } from '../lib/specs.js';
 import { PAYLOADS } from './support.js';
 
 const MODULE = 'core.cli';
@@ -22,12 +22,15 @@ function objectNodes(node, found = []) {
     return found;
 }
 
-test('the plugin ships eight read-only specs plus the export spec', () => {
+test('the plugin ships eight read-only specs plus eight writing specs', () => {
     assert.equal(READ_SPECS.length, 8);
-    assert.equal(ALL_SPECS.length, 9);
+    assert.equal(WRITE_SPECS.length, 9);
+    assert.equal(ALL_SPECS.length, 17);
     assert.equal(EXPORT_SPEC.name, EXPORT_TOOL_NAME);
-    assert.equal(READ_SPECS.some((spec) => spec.name === EXPORT_TOOL_NAME), false);
-    assert.equal(new Set(ALL_SPECS.map((spec) => spec.name)).size, 9);
+    assert.equal(READ_SPECS.some((spec) => WRITE_SPECS.includes(spec)), false);
+    assert.equal(new Set(ALL_SPECS.map((spec) => spec.name)).size, 17);
+    for (const spec of WRITE_SPECS)
+        assert.equal(spec.concurrencySafe, false, `${spec.name} writes, so it is not concurrency safe`);
 });
 
 test('every spec is model-facing and builds a complete call', () => {
@@ -76,6 +79,10 @@ test('the CLI-required arguments are marked required', () => {
         ff_refs: 'selector',
         ff_deps: 'value',
         ff_export: 'to',
+        ff_set: 'field',
+        ff_add: 'selector',
+        ff_remove: 'selector',
+        ff_convert: 'to',
     };
     for (const [name, parameter] of Object.entries(required)) {
         const spec = ALL_SPECS.find((item) => item.name === name);
@@ -103,6 +110,14 @@ test('every spec renders its canned payload', () => {
         ff_deps: PAYLOADS.deps,
         ff_check: PAYLOADS.check,
         ff_export: PAYLOADS.export,
+        ff_set: PAYLOADS.set,
+        ff_add: PAYLOADS.add,
+        ff_remove: PAYLOADS.remove,
+        ff_index: PAYLOADS.index,
+        ff_convert: PAYLOADS.convert,
+        ff_settings: PAYLOADS.settings,
+        ff_undo: PAYLOADS.undo,
+        ff_redo: PAYLOADS.undo,
     };
     for (const spec of ALL_SPECS) {
         const text = spec.render({}, payloads[spec.name]);
