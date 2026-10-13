@@ -34,7 +34,7 @@ pnpm add /path/to/dsh-firefight-mod-tools
       name: 'dsh-firefight-mod-tools'
       config:
         pythonPath: python
-        editorRoot: 'D:/src/firefight-mod-editor-open/m3-cli'
+        editorRoot: 'D:/src/firefight-mod-editor-open/editor-src'
         firefightRoot: 'D:/Program Files (x86)/Steam/steamapps/common/Firefight'
         workspace: 'D:/mods'
 ```
@@ -53,7 +53,8 @@ pnpm add /path/to/dsh-firefight-mod-tools
 | `cwd` | `''` | 命令行进程的工作目录；留空则用检出目录，命令行据此找到 `mod.toml`。 |
 | `timeoutMs` | `60000` | 单次调用超过该毫秒数即被终止。 |
 | `maxOutputChars` | `40000` | 单个工具结果文本的硬上限。 |
-| `enableExport` | `false` | 是否注册写文件的 `ff_export` 工具；注册后每次调用仍需审批。 |
+| `enableExport` | `false` | 未设 `enableWrites` 时单独注册 `dsh_ff_export`；注册后每次调用仍需审批。 |
+| `enableWrites` | `false` | 注册下方工具表中所有写文件的工具；每个工具每次调用都停在审批提示上。 |
 
 运行器把 `editorRoot` 放在子进程 `PYTHONPATH` 的第一位，因此自定义 `cwd` 不会破坏 `-m core.cli`。
 
@@ -62,36 +63,46 @@ pnpm add /path/to/dsh-firefight-mod-tools
 `scope` 取 `Firefight`（原版数据）、`Mod`（工作目录下的模组工程，默认值）或其它模组文件夹名。
 `root` 与 `workspace` 可对单次调用覆盖已配置的根目录。
 
+每个注册名都带本插件的 `dsh_` 前缀，因此本插件的工具与编辑器的 MCP 服务（`mcp_<名字>`）可以在同一个会话里同时启用而不会重名。
+
 | 工具 | 参数 | 返回 |
 | --- | --- | --- |
-| `ff_list` | `selector`、`type` | 某作用域下实体的类别、格式与大小。先用它找路径。selector 是精确的目录前缀（`Data/Weapons`），不是子串。 |
-| `ff_show` | `selector`（必填）、`as` = `raw`\|`toml`\|`xml` | 单个文档的原样或转换内容，外加转换警告。selector 可指向子树（`Data/Weapons/WEAPON_PISTOL_P38.txt/ammo`），此时返回该子树的值。 |
-| `ff_get` | `selector`（必填）、`field` | 字段值及其文档路径与源文件行号。field 是根元素内的点号路径，例如 `name` 或 `ammo.type`。 |
-| `ff_find` | `selector`、`tag`、`value`、`path`、`ignoreCase`、`limit` | 按标签、值或文档路径匹配。`tag`、`value`、`path` 至少给一个，否则命令行以用法错误退出；不给 selector 时搜索整个作用域。`limit` 同时限制载荷与渲染行数。 |
-| `ff_stats` | `selector` | 按类别、格式与根元素统计文件数与字节数。 |
-| `ff_refs` | `selector`（必填）、`kind` | 某个实体或文件夹的出向引用。 |
-| `ff_deps` | `value`（必填）、`kind` | 某个 token 的入向引用及它解析到的实体；`kind` 收窄为一种引用类型。改名或删除前应先查这里。 |
-| `ff_check` | `selector` | 载入错误、转换警告与悬空引用。 |
-| `ff_export` | `selector`、`to`（必填） | 把实体渲染成原版 XML 写到 `to`。**会写文件。** |
+| `dsh_ff_list` | `selector`、`type` | 某作用域下实体的类别、格式与大小。先用它找路径。selector 是精确的目录前缀（`Data/Weapons`），不是子串。 |
+| `dsh_ff_show` | `selector`（必填）、`as` = `raw`\|`toml`\|`xml` | 单个文档的原样或转换内容，外加转换警告。selector 可指向子树（`Data/Weapons/WEAPON_PISTOL_P38.txt/ammo`），此时返回该子树的值。 |
+| `dsh_ff_get` | `selector`（必填）、`field` | 字段值及其文档路径与源文件行号。field 是根元素内的点号路径，例如 `name` 或 `ammo.type`；不给则列出该文档的全部字段。 |
+| `dsh_ff_find` | `selector`、`tag`、`value`、`path`、`ignoreCase`、`limit` | 按标签、值或文档路径匹配。`tag`、`value`、`path` 至少给一个，否则命令行以用法错误退出；不给 selector 时搜索整个作用域。`limit` 限制渲染行数，`count` 仍报告全部匹配数。 |
+| `dsh_ff_stats` | `selector` | 按类别、格式与根元素统计文件数与字节数。 |
+| `dsh_ff_refs` | `selector`（必填）、`kind` | 某个实体或文件夹的出向引用。 |
+| `dsh_ff_deps` | `value`（必填）、`kind` | 某个 token 的入向引用及它解析到的实体；`kind` 收窄为一种引用类型。改名或删除前应先查这里。 |
+| `dsh_ff_check` | `selector` | 载入错误、转换警告与悬空引用。 |
+| `dsh_ff_export` | `selector`、`to`（必填）、`overwrite`、`dryRun` | 把实体渲染成原版 XML 写到 `to`；已存在的文件默认替换，`overwrite=false` 时跳过。**会写文件。** |
+| `dsh_ff_set` | `selector`（必填）、`field`（必填）、`value`、`op` = `set`\|`append`\|`delete`、`from`、`dryRun` | 设置一个字段，或增删数组表中的一个条目。文档的其余字节保持不变。**会写文件。** |
+| `dsh_ff_add` | `selector`（必填）、`type`、`from`、`dryRun` | 按 schema 骨架新建一个实体文档，或用 `from` 复制一个已有文档。**会写文件。** |
+| `dsh_ff_remove` | `selector`（必填）、`dryRun` | 删除一个实体文档。**会写文件。** |
+| `dsh_ff_index` | `selector`、`dryRun` | 写出 `.editor/index.toml` 与 `.editor/refs.toml`；`dsh_ff_refs` 与 `dsh_ff_deps` 从这两张表作答，表缺失或过期时回退为现场扫描。**会写文件。** |
+| `dsh_ff_convert` | `selector`、`to`（必填）、`type`、`overwrite`、`dryRun` | 把原版 XML 转成 `to` 下的工程工作文件；已存在的文件默认保留，`overwrite=true` 才替换。**会写文件。** |
+| `dsh_ff_settings` | `op` = `render`\|`emit`、`overwrite`、`dryRun` | 把 `Mod/mod.txt` 渲染成 `mod_setting.toml`，或把该工程文件写回原版形态。**会写文件。** |
+| `dsh_ff_undo` | `count`、`dryRun` | 按变更从新到旧把上次写入替换掉的内容放回。**会写文件。** |
+| `dsh_ff_redo` | `count`、`dryRun` | 按从旧到新重放最近被撤销的变更。**会写文件。** |
 
 命令行按位置解析 `key=value`，因此名字里含 `=` 的 selector（例如名为 `eq=file.toml` 的文件夹）
-会被当成选项，调用会静默扩大到整个作用域；这类文件夹需要改名。`limit` 只被 `ff_find` 采用。
+会被当成选项，调用会静默扩大到整个作用域；这类文件夹需要改名。`limit` 只由 `dsh_ff_find` 声明。
 
 ## 行为
 
-- **载荷优先。** stdout 只要能解析成 JSON 就是结果，命令行以非零码退出也一样——`ff_check`
+- **载荷优先。** stdout 只要能解析成 JSON 就是结果，命令行以非零码退出也一样——`dsh_ff_check`
   就是这样报告问题的。没有 JSON 载荷的回答会转成带稳定错误码的结构化错误值（`usage`、
   `cli-error`、`timeout`、`cancelled`、`empty-output`）；完全启动不了的命令行进程则作为基础设施
   故障抛出。
 - **形状互斥。** 每个工具的输出契约是「命令行载荷 ∪ 本插件的结构化错误值」的 `oneOf`，宿主会拒绝
-  同时匹配零个或多个分支的结果。因此每个载荷分支都强制要求一个属性（`scope`，`ff_show`/`ff_get`
-  用 `path`，`ff_find` 用 `count`），保证要么只匹配载荷、要么只匹配错误值。
-- **导出要审批。** 只有 `enableExport` 为真才注册 `ff_export`，且每次调用都停在审批提示上；没有
-  审批通道时宿主直接拒绝，而不是绕过。
-- **输出有界。** 每个列表段最多 100 行（`ff_show` 完整打印整篇文档，但子树最多 100 个值；
-  `ff_check` 的两个列表各自设上限），整体结果另受 `maxOutputChars` 限制。`ff_list`、`ff_refs`、
-  `ff_deps` 的载荷可能有数千行，这些上限是唯一的保护。
-- **并发。** 八个只读工具声明可并发；`ff_export` 不声明，因此导出不会重叠执行。
+  同时匹配零个或多个分支的结果。因此每个载荷分支都强制要求一个属性，且该属性是错误值从不携带的
+  那一个（`status`），保证要么只匹配载荷、要么只匹配错误值。
+- **写入要审批。** `enableWrites` 为真时注册全部写文件的工具，只开 `enableExport` 时只注册
+  `dsh_ff_export`；每次调用都停在审批提示上，没有审批通道时宿主直接拒绝，而不是绕过。
+- **输出有界。** 每个列表段最多 100 行（`dsh_ff_show` 完整打印整篇文档，但子树最多 100 个值；
+  `dsh_ff_check` 的两个列表各自设上限），整体结果另受 `maxOutputChars` 限制。`dsh_ff_list`、`dsh_ff_refs`、
+  `dsh_ff_deps` 的载荷可能有数千行，这些上限是唯一的保护。
+- **并发。** 八个只读工具声明可并发；写文件的工具都不声明，因此写入不会重叠执行。
 
 ## 开发
 

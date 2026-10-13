@@ -11,7 +11,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as stub from './harness-stub.js';
-import { ALL_SPECS, outputContract } from '../lib/specs.js';
+import { ALL_SPECS, TOOL_PREFIX, outputContract } from '../lib/specs.js';
 import { PAYLOADS } from './support.js';
 
 let host;
@@ -30,17 +30,20 @@ const defineTool = host?.defineTool ?? stub.defineTool;
  * `validateJsonSchemaValue` checks the compiled schema as well when it is around.
  */
 const validateValue = stub.validateValue;
-const specOf = (name) => ALL_SPECS.find((spec) => spec.name === name);
-const payloadOf = (tool) => PAYLOADS[tool.name.replace(/^ff_/, '')];
+const specOf = (name) => ALL_SPECS.find((spec) => spec.name === name.replace(TOOL_PREFIX, ''));
+const payloadOf = (tool) => PAYLOADS[tool.name.slice(TOOL_PREFIX.length).replace(/^ff_/, '')];
 /** Arguments that satisfy every required parameter of a tool, for the real wrapper. */
 const ARGS = {
-    ff_list: {}, ff_stats: {}, ff_find: {}, ff_check: {},
-    ff_show: { selector: 'Data/Weapons/WEAPON_PISTOL_P38.txt' },
-    ff_get: { selector: 'Data/Weapons/WEAPON_PISTOL_P38.txt', field: 'name' },
-    ff_refs: { selector: 'Data/Weapons/WEAPON_PISTOL_P38.txt' },
-    ff_deps: { value: 'WEAPON_PISTOL_P38' },
-    ff_export: { to: '/tmp/out' },
+    [`${TOOL_PREFIX}ff_list`]: {}, [`${TOOL_PREFIX}ff_stats`]: {}, [`${TOOL_PREFIX}ff_find`]: {}, [`${TOOL_PREFIX}ff_check`]: {},
+    [`${TOOL_PREFIX}ff_show`]: { selector: 'Data/Weapons/WEAPON_PISTOL_P38.txt' },
+    [`${TOOL_PREFIX}ff_get`]: { selector: 'Data/Weapons/WEAPON_PISTOL_P38.txt', field: 'name' },
+    [`${TOOL_PREFIX}ff_refs`]: { selector: 'Data/Weapons/WEAPON_PISTOL_P38.txt' },
+    [`${TOOL_PREFIX}ff_deps`]: { value: 'WEAPON_PISTOL_P38' },
+    [`${TOOL_PREFIX}ff_export`]: { to: '/tmp/out' },
 };
+
+/** The registered names of the reading tools, in the order the table declares them. */
+const READ_NAMES = ['ff_list', 'ff_show', 'ff_get', 'ff_find', 'ff_stats', 'ff_refs', 'ff_deps', 'ff_check'].map((name) => TOOL_PREFIX + name);
 
 const CONFIG = { maxOutputChars: 40000, pythonPath: 'python', timeoutMs: 60000 };
 const okRun = (payload) => async () => ({ code: 0, stdout: JSON.stringify(payload), stderr: '', timedOut: false, aborted: false, argv: [] });
@@ -54,7 +57,7 @@ test('createTools wires the eight read-only tools with valid definitions', async
     const { createTools } = await import('../lib/tools.js');
     const tools = createTools({ config: CONFIG, run: okRun(PAYLOADS.list) }, defineTool);
     assert.equal(tools.length, 8);
-    assert.deepEqual(tools.map((tool) => tool.name), ['ff_list', 'ff_show', 'ff_get', 'ff_find', 'ff_stats', 'ff_refs', 'ff_deps', 'ff_check']);
+    assert.deepEqual(tools.map((tool) => tool.name), READ_NAMES);
     for (const tool of tools) {
         assert.equal(typeof tool.execute, 'function');
         // The real factory validates the arguments before it answers, so pass a
@@ -69,7 +72,7 @@ test('ff_export appears only when export is enabled, and it is never concurrent'
     assert.equal(createTools({ config: CONFIG, run: okRun(PAYLOADS.export) }, defineTool).length, 8);
     const tools = createTools({ config: { ...CONFIG, enableExport: true }, run: okRun(PAYLOADS.export) }, defineTool);
     assert.equal(tools.length, 9);
-    assert.equal(tools.find((tool) => tool.name === 'ff_export').isConcurrencySafe(ARGS.ff_export), false);
+    assert.equal(tools.find((tool) => tool.name === `${TOOL_PREFIX}ff_export`).isConcurrencySafe(ARGS[`${TOOL_PREFIX}ff_export`]), false);
 });
 
 test('execute runs the CLI and returns its payload, and render projects it', async () => {
@@ -79,7 +82,7 @@ test('execute runs the CLI and returns its payload, and render projects it', asy
         calls.push(call);
         return { code: 0, stdout: JSON.stringify(PAYLOADS.list), stderr: '', timedOut: false, aborted: false, argv: [] };
     };
-    const list = createTools({ config: CONFIG, run }, defineTool).find((tool) => tool.name === 'ff_list');
+    const list = createTools({ config: CONFIG, run }, defineTool).find((tool) => tool.name === `${TOOL_PREFIX}ff_list`);
     const value = await list.execute({ scope: 'Firefight', selector: 'Weapons' }, { signal: undefined });
     assert.deepEqual(value, PAYLOADS.list);
     assert.deepEqual(calls[0], { scope: 'Firefight', command: 'list', selector: 'Weapons', options: { root: undefined, workspace: undefined, type: undefined } });
@@ -108,7 +111,7 @@ test('the published output schemas accept the real payloads and the error value'
 
 test('the published output schemas still reject a value of the wrong shape', async () => {
     const { createTools } = await import('../lib/tools.js');
-    const list = createTools({ config: CONFIG, run: okRun(PAYLOADS.list) }, defineTool).find((tool) => tool.name === 'ff_list');
+    const list = createTools({ config: CONFIG, run: okRun(PAYLOADS.list) }, defineTool).find((tool) => tool.name === `${TOOL_PREFIX}ff_list`);
     const contract = outputContract(specOf(list.name));
     // Both oneOf branches are objects, so a scalar can never be a valid result, and
     // an object without the payload branch's discriminator belongs to no branch.
@@ -148,4 +151,20 @@ test('apply leaves the export tool and the gate out by default', async () => {
     applyWithDeps(ctx, { editorRoot: 'C:/editor' }, { run: okRun(PAYLOADS.list), defineTool });
     assert.equal(registered.length, 8);
     assert.equal(effects, 1);
+});
+
+test('apply gates the writing tools when enableWrites is on without enableExport', async () => {
+    const { applyWithDeps } = await import('../lib/index.js');
+    const registered = [];
+    const listeners = [];
+    let effects = 0;
+    const ctx = {
+        effect(fn) { effects += 1; return fn() ?? (() => {}); },
+        tools: { register(tool) { registered.push(tool.name); return () => registered.pop(); } },
+        on(event, handler) { listeners.push({ event, handler }); return () => listeners.pop(); },
+    };
+    applyWithDeps(ctx, { enableWrites: true, editorRoot: 'C:/editor' }, { run: okRun(PAYLOADS.list), defineTool });
+    assert.equal(registered.length, 17);
+    assert.equal(effects, 2, 'the gate must be registered alongside the writing tools');
+    assert.equal(listeners[0].event, 'tools/pre-execute');
 });

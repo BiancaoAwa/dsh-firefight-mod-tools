@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { exportApprovalReason, registerExportGate } from '../lib/approval.js';
-import { EXPORT_TOOL_NAME } from '../lib/specs.js';
+import { EXPORT_TOOL_NAME, TOOL_PREFIX } from '../lib/specs.js';
 
 /** Minimal `tools/pre-execute` host: records the hook and drives it by hand. */
 function makeFakeCtx() {
@@ -33,7 +33,7 @@ test('ff_export is always asked about, never allowed silently', async () => {
     const ctx = makeFakeCtx();
     ctx.effect = () => registerExportGate(ctx);
     ctx.effect();
-    const { decision, passedThrough } = await ctx.run({ name: EXPORT_TOOL_NAME, arguments: { scope: 'Firefight', to: 'D:/out' } });
+    const { decision, passedThrough } = await ctx.run({ name: TOOL_PREFIX + EXPORT_TOOL_NAME, arguments: { scope: 'Firefight', to: 'D:/out' } });
     assert.equal(decision.kind, 'ask');
     assert.match(decision.reason, /export Firefight \/ the whole scope to D:\/out/);
     assert.equal(passedThrough, false);
@@ -43,7 +43,7 @@ test('every other tool passes straight through the gate', async () => {
     const ctx = makeFakeCtx();
     ctx.effect = () => registerExportGate(ctx);
     ctx.effect();
-    const { decision, passedThrough } = await ctx.run({ name: 'ff_list', arguments: {} });
+    const { decision, passedThrough } = await ctx.run({ name: `${TOOL_PREFIX}ff_list`, arguments: {} });
     assert.equal(passedThrough, true);
     assert.deepEqual(decision, { kind: 'allow', passed: true });
 });
