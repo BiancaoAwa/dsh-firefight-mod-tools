@@ -164,7 +164,7 @@ test('apply gates the writing tools when enableWrites is on without enableExport
         on(event, handler) { listeners.push({ event, handler }); return () => listeners.pop(); },
     };
     applyWithDeps(ctx, { enableWrites: true, editorRoot: 'C:/editor' }, { run: okRun(PAYLOADS.list), defineTool });
-    assert.equal(registered.length, 17);
+    assert.equal(registered.length, 19);
     assert.equal(effects, 2, 'the gate must be registered alongside the writing tools');
     assert.equal(listeners[0].event, 'tools/pre-execute');
 });
