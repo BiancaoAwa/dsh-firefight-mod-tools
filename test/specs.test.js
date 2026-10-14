@@ -24,11 +24,11 @@ function objectNodes(node, found = []) {
 
 test('the plugin ships eight read-only specs plus eight writing specs', () => {
     assert.equal(READ_SPECS.length, 8);
-    assert.equal(WRITE_SPECS.length, 9);
-    assert.equal(ALL_SPECS.length, 17);
+    assert.equal(WRITE_SPECS.length, 11);
+    assert.equal(ALL_SPECS.length, 19);
     assert.equal(EXPORT_SPEC.name, EXPORT_TOOL_NAME);
     assert.equal(READ_SPECS.some((spec) => WRITE_SPECS.includes(spec)), false);
-    assert.equal(new Set(ALL_SPECS.map((spec) => spec.name)).size, 17);
+    assert.equal(new Set(ALL_SPECS.map((spec) => spec.name)).size, 19);
     for (const spec of WRITE_SPECS)
         assert.equal(spec.concurrencySafe, false, `${spec.name} writes, so it is not concurrency safe`);
 });
@@ -118,6 +118,8 @@ test('every spec renders its canned payload', () => {
         ff_settings: PAYLOADS.settings,
         ff_undo: PAYLOADS.undo,
         ff_redo: PAYLOADS.undo,
+        ff_init: PAYLOADS.init,
+        ff_pack: PAYLOADS.pack,
     };
     for (const spec of ALL_SPECS) {
         const text = spec.render({}, payloads[spec.name]);
